@@ -1,0 +1,925 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Ledger Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a left rail on wide screens and a bottom pill nav everywhere. Seven sections; the forms for accounts, transactions, goals and tasks live in their own sections. */
+:root {
+  --bg: #E9E1D4;
+  --card: #F4EDE1;
+  --ink: #2B2118;
+  --muted: #8A7B6B;
+  --accent: #B5552F;
+  --good: #3E8E63;
+  --bad: #B5552F;
+  --line: #D8CCBB;
+  --field: #FBF7F0;
+  --shadow: 0 1px 0 #FFF8EC inset, 0 2px 4px rgba(90,64,40,.18), 0 10px 24px rgba(90,64,40,.12);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+body.modern {
+  --bg: #F3F4F7;
+  --card: #FFFFFF;
+  --ink: #15161A;
+  --muted: #7C7F89;
+  --accent: #E5484D;
+  --good: #1F9D6B;
+  --bad: #E5484D;
+  --line: #E6E7EC;
+  --field: #F7F8FA;
+  --shadow: 0 1px 2px rgba(20,22,30,.06);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 120px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+body.skeuo { background-image: radial-gradient(rgba(120,90,60,.06) 1px, transparent 1px); background-size: 6px 6px; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hidden { display: none !important; }
+
+/* Sign-in gate */
+.gate {
+  max-width: 420px; margin: 12vh auto 0; background: var(--card); border-radius: 24px;
+  padding: 32px 28px; box-shadow: var(--shadow); text-align: center;
+}
+.gate .brand { width: 52px; height: 52px; border-radius: 16px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 22px; margin: 0 auto 16px; }
+.gate h1 { font-size: 22px; margin: 0 0 8px; letter-spacing: -0.02em; }
+.gate p { color: var(--muted); margin: 0 0 6px; }
+.lock-form { display: grid; gap: 10px; margin-top: 16px; text-align: left; }
+.lock-form .btn { width: 100%; margin-top: 4px; }
+
+/* Shell */
+.app { display: grid; grid-template-columns: 84px 1fr; gap: 20px; max-width: 1240px; margin: 0 auto; }
+.rail {
+  background: var(--card); border-radius: 24px; padding: 18px 0;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  box-shadow: var(--shadow); align-self: start; position: sticky; top: 16px;
+}
+.rail .brand { width: 44px; height: 44px; border-radius: 14px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+.rail button, .dock button {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center;
+}
+.rail button { width: 48px; height: 48px; border-radius: 14px; }
+.rail button[aria-current="page"] { background: var(--bg); color: var(--ink); box-shadow: var(--shadow); }
+body.skeuo .rail button[aria-current="page"] { box-shadow: inset 0 2px 4px rgba(90,64,40,.25); }
+.rail svg, .dock svg { width: 22px; height: 22px; }
+
+/* Bottom pill nav, as in the reel */
+.dock {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 4px; padding: 8px; border-radius: 999px;
+  background: var(--card); box-shadow: var(--shadow); z-index: 6; max-width: calc(100% - 24px);
+}
+.dock button { width: 44px; height: 44px; border-radius: 999px; }
+.dock button[aria-current="page"] { background: var(--ink); color: var(--card); }
+.dock svg { width: 20px; height: 20px; }
+
+.head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.head h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; }
+.head p { margin: 2px 0 0; color: var(--muted); }
+.switch { display: inline-flex; background: var(--card); border-radius: 999px; padding: 4px; box-shadow: var(--shadow); }
+.switch button { border: 0; background: transparent; padding: 8px 14px; border-radius: 999px; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; }
+.switch button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+
+/* Cards */
+.card { background: var(--card); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.card .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.kpi .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.kpi .delta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.grid-main { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+
+/* Forms */
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; margin-bottom: 14px; }
+.fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fld span { font-size: 12px; color: var(--muted); }
+.fld input, .fld select {
+  width: 100%; border: 1px solid var(--line); background: var(--field); border-radius: 12px;
+  padding: 9px 11px; min-width: 0;
+}
+body.skeuo .fld input, body.skeuo .fld select { box-shadow: inset 0 1px 3px rgba(90,64,40,.14); }
+.actions-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn {
+  border: 0; border-radius: 12px; padding: 10px 16px; cursor: pointer; font-weight: 600;
+  background: var(--ink); color: var(--card);
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.small { padding: 6px 10px; font-size: 12px; border-radius: 10px; }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .5; cursor: default; }
+.msg { font-size: 13px; color: var(--bad); min-height: 0; margin: 0 0 10px; }
+.msg:empty { display: none; }
+
+/* Lists */
+.list { list-style: none; margin: 0; padding: 0; }
+.item { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+.item .grow { flex: 1; min-width: 0; }
+.item .name { font-weight: 600; overflow-wrap: anywhere; }
+.item .meta { color: var(--muted); font-size: 12px; }
+.item .row-actions { display: flex; gap: 6px; flex: none; }
+.amount { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.amount.pos { color: var(--good); }
+.amount.neg { color: var(--ink); }
+.avatar { width: 36px; height: 36px; border-radius: 12px; flex: none; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--bg); }
+.item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; }
+.item.done .name { text-decoration: line-through; color: var(--muted); }
+.tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.empty { color: var(--muted); padding: 12px 4px; margin: 0; }
+
+.bar { height: 10px; border-radius: 999px; background: var(--bg); overflow: hidden; margin-top: 6px; }
+body.skeuo .bar { box-shadow: inset 0 1px 3px rgba(90,64,40,.25); }
+.bar > i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.goal-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.goal-top span:last-child { color: var(--muted); }
+.cat-row { margin-bottom: 14px; }
+.cat-row:last-child { margin-bottom: 0; }
+.cat-row .top { display: flex; justify-content: space-between; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cat-row .top span:last-child { color: var(--muted); }
+select.filter { border: 1px solid var(--line); background: var(--field); border-radius: 12px; padding: 7px 10px; font-size: 13px; }
+
+@media (max-width: 960px) { .grid-main, .grid-two { grid-template-columns: 1fr; } }
+@media (max-width: 720px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { display: none; }
+  .head h1 { font-size: 22px; }
+  .kpi .value { font-size: 24px; }
+  .item .row-actions .btn { padding: 6px 8px; }
+  .dock button { width: 40px; height: 40px; }
+  .dock { gap: 2px; padding: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<body class="skeuo">
+
+<!-- Sign-in screen: shown until the viewer's claude.ai account is available -->
+<div id="gate" class="gate hidden" role="dialog" aria-labelledby="gate-h">
+  <div class="brand" aria-hidden="true">L</div>
+  <h1 id="gate-h">Sign in to Ledger</h1>
+  <p>Ledger uses your claude.ai account. Open this page while you are signed in and your dashboard appears here.</p>
+  <p>Your data stays in your own private space, and nobody else can see it.</p>
+</div>
+
+<!-- Local account: a username and password kept in this person's private space -->
+<div id="lock" class="gate hidden" role="dialog" aria-labelledby="lock-title">
+  <div class="brand" aria-hidden="true">L</div>
+  <h1 id="lock-title">Ledger</h1>
+  <p id="lock-sub"></p>
+  <form id="lock-form" class="lock-form" novalidate>
+    <label class="fld"><span>Username</span><input name="username" type="text" autocomplete="username" required></label>
+    <label class="fld"><span>Password (8 characters or more)</span><input name="password" type="password" autocomplete="current-password" required></label>
+    <label class="fld" id="lock-confirm-wrap"><span>Repeat password</span><input name="confirm" type="password" autocomplete="new-password"></label>
+    <button class="btn" id="lock-submit" type="submit">Log in</button>
+  </form>
+  <p id="lock-msg" class="msg" role="status"></p>
+  <div id="lock-forgot" class="hidden" style="text-align:center;margin-top:8px">
+    <button type="button" class="btn ghost small" id="reset-open">Forgot password?</button>
+    <div id="reset-box" class="hidden" style="margin-top:12px">
+      <p class="sub">This removes the saved username and password. Your dashboard data stays. Then you can create a new password. It works because you are signed in to claude.ai; no email is sent.</p>
+      <button type="button" class="btn danger" id="reset-go">Reset password</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <nav class="rail" id="rail" aria-label="Sections"><div class="brand" aria-hidden="true">L</div></nav>
+
+  <main>
+    <header class="head">
+      <div>
+        <h1 id="greet">Hello</h1>
+        <p>Your money, goals and tasks in one place.</p>
+      </div>
+      <div class="actions-row"><button type="button" class="btn ghost small" data-act="lock">Sign out</button></div>
+      <div class="switch" role="group" aria-label="Style">
+        <button type="button" data-style="skeuo" aria-pressed="true">Classic</button>
+        <button type="button" data-style="modern" aria-pressed="false">Modern</button>
+      </div>
+    </header>
+
+    <p id="msg" class="msg" role="status"></p>
+
+    <!-- Overview -->
+    <section id="view-overview">
+      <div id="empty-banner" class="card hidden" style="margin-bottom:16px">
+        <div class="actions-row" style="justify-content:space-between">
+          <div><strong>Nothing here yet.</strong><div class="sub" style="margin:2px 0 0">Add your own accounts, transactions, goals and tasks, or load example data to see how it works.</div></div>
+          <button type="button" class="btn ghost" data-act="seed">Load example data</button>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="card kpi"><div class="label">Total in accounts</div><div class="value" id="k-balance">-</div><div class="delta" id="k-accounts">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Spent this month</div><div class="value" id="k-spent">-</div><div class="delta" id="k-spent-d">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Goals reached</div><div class="value" id="k-goals">-</div><div class="delta" id="k-goals-d">&nbsp;</div></div>
+      </div>
+
+      <div class="grid-main">
+        <div class="card">
+          <h2>Recent transactions</h2>
+          <ul class="list" id="sum-txn"></ul>
+        </div>
+        <div class="card">
+          <h2>Spending by category</h2>
+          <svg id="donut" class="chart" viewBox="0 0 260 260" role="img" aria-label="Spending split by category"></svg>
+          <div id="donut-legend" class="legend"></div>
+        </div>
+      </div>
+
+      <div class="grid-two">
+        <div class="card">
+          <h2>Goals</h2>
+          <ul class="list" id="sum-goal"></ul>
+        </div>
+        <div class="card">
+          <h2>Tasks</h2>
+          <ul class="list" id="sum-task"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Savings and goals -->
+    <section id="view-goals" class="hidden">
+      <div class="stack">
+        <div class="card">
+          <h2>Savings</h2>
+          <div class="kpis" style="margin:0">
+            <div><div class="label">Saved across goals</div><div class="value" id="g-saved">-</div></div>
+            <div><div class="label">Total target</div><div class="value" id="g-target">-</div></div>
+          </div>
+          <div class="bar" style="margin-top:16px"><i id="g-bar" style="width:0%"></i></div>
+        </div>
+        <div class="card">
+          <h2>Goals</h2>
+          <div id="form-goal"></div>
+          <ul class="list" id="list-goal"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activity -->
+    <section id="view-activity" class="hidden">
+      <div class="card">
+        <h2>Activity <select class="filter" id="act-filter" aria-label="Filter activity">
+          <option value="all">All</option>
+          <option value="in">Money in</option>
+          <option value="out">Money out</option>
+        </select></h2>
+        <ul class="list" id="list-activity"></ul>
+      </div>
+    </section>
+
+    <!-- Reports -->
+    <section id="view-reports" class="hidden">
+      <div class="stack">
+        <div class="kpis" style="margin:0">
+          <div class="card kpi"><div class="label">Money in</div><div class="value" id="r-in">-</div><div class="delta">All transactions</div></div>
+          <div class="card kpi"><div class="label">Money out</div><div class="value" id="r-out">-</div><div class="delta">All transactions</div></div>
+          <div class="card kpi"><div class="label">Net</div><div class="value" id="r-net">-</div><div class="delta">In minus out</div></div>
+        </div>
+        <div class="card">
+          <h2>Spending by category</h2>
+          <div id="r-cats"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tasks -->
+    <section id="view-tasks" class="hidden">
+      <div class="card">
+        <h2>Tasks</h2>
+        <div id="form-task"></div>
+        <ul class="list" id="list-task"></ul>
+      </div>
+    </section>
+
+    <!-- Wallet: accounts and transactions -->
+    <section id="view-wallet" class="hidden">
+      <div class="stack">
+        <div class="card">
+          <h2>Accounts</h2>
+          <div id="form-account"></div>
+          <ul class="list" id="list-account"></ul>
+        </div>
+        <div class="card">
+          <h2>Transactions</h2>
+          <p class="sub">Use a minus sign for money you spent, and a plus sign for money you received.</p>
+          <div id="form-txn"></div>
+          <ul class="list" id="list-txn"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="hidden">
+      <div class="stack">
+        <div class="card">
+          <h2>Account</h2>
+          <p class="sub">Lock the dashboard now. You will need your username and password to open it again.</p>
+          <div class="actions-row"><button type="button" class="btn ghost" data-act="lock">Lock</button></div>
+        </div>
+        <div class="card">
+          <h2>Profile</h2>
+          <form id="profile-form" class="form">
+            <label class="fld"><span>Your name</span><input name="name" type="text" maxlength="40"></label>
+            <label class="fld"><span>Currency</span>
+              <select name="currency">
+                <option value="EGP">EGP</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </label>
+            <div class="actions-row"><button class="btn" type="submit">Save profile</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Example data</h2>
+          <p class="sub">Adds a few sample accounts, transactions, goals and tasks so you can try the dashboard. You can delete them one by one.</p>
+          <div class="actions-row"><button type="button" class="btn ghost" data-act="seed">Load example data</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="dock" id="dock" aria-label="Sections"></nav>
+</div>
+
+<script>
+// Local storage stand-in for the claude.ai database. It keeps the same calls the page makes,
+// so all data stays in this browser's own storage (localStorage) on this device.
+var localDb = (function () {
+  var KEY = 'ledger-local-v1';
+  var docs = {};
+  try { docs = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { docs = {}; }
+  var listeners = [];
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(docs)); } catch (e) {} }
+  function clone(v) { return JSON.parse(JSON.stringify(v)); }
+  function newId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+  function notify() { listeners.slice().forEach(function (fn) { fn(); }); }
+  function subscribe(fn, next) {
+    listeners.push(fn);
+    setTimeout(fn, 0);
+    return function () { listeners = listeners.filter(function (x) { return x !== fn; }); };
+  }
+  function snapOf(path) {
+    var exists = Object.prototype.hasOwnProperty.call(docs, path);
+    return { id: path.split('/').pop(), exists: exists, metadata: {},
+      data: function () { return exists ? clone(docs[path]) : undefined; } };
+  }
+  function docRef(path) {
+    return {
+      id: path.split('/').pop(), path: path,
+      get: async function () { return snapOf(path); },
+      set: async function (data) { docs[path] = clone(data); save(); notify(); },
+      update: async function (data) {
+        if (!docs[path]) throw new Error('invalid_argument');
+        Object.assign(docs[path], clone(data)); save(); notify();
+      },
+      delete: async function () { delete docs[path]; save(); notify(); },
+      onSnapshot: function (next) { return subscribe(function () { next(snapOf(path)); }); }
+    };
+  }
+  function colRef(path) {
+    var prefix = path + '/';
+    function list() {
+      return Object.keys(docs).filter(function (k) {
+        return k.indexOf(prefix) === 0 && k.slice(prefix.length).indexOf('/') === -1;
+      }).map(snapOf);
+    }
+    return {
+      path: path,
+      doc: function (id) { return docRef(path + '/' + (id || newId())); },
+      add: async function (data) { var ref = docRef(path + '/' + newId()); await ref.set(data); return ref; },
+      get: async function () { return { docs: list(), size: list().length, empty: !list().length }; },
+      onSnapshot: function (next) {
+        return subscribe(function () { var d = list(); next({ docs: d, size: d.length, empty: !d.length }); });
+      }
+    };
+  }
+  return { collection: colRef, doc: docRef };
+})();
+
+(async function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var NS = 'http://www.w3.org/2000/svg';
+  var COLORS = ['#B5552F', '#3E8E63', '#D9A441', '#6C7FB8', '#8A7B6B', '#9B6B9E'];
+
+  // Bottom nav and rail are built from this list
+  var NAV = [
+    { id: 'overview', label: 'Overview', icon: '<rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/>' },
+    { id: 'goals', label: 'Savings and goals', icon: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8"/>' },
+    { id: 'activity', label: 'Activity', icon: '<path d="M4 6h16M4 12h16M4 18h10"/>' },
+    { id: 'reports', label: 'Reports', icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>' },
+    { id: 'tasks', label: 'Tasks', icon: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/>' },
+    { id: 'wallet', label: 'Wallet', icon: '<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/>' },
+    { id: 'settings', label: 'Settings', icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>' }
+  ];
+  var KINDS = {
+    account: { label: 'account', fields: [
+      { name: 'title', label: 'Account name', req: true },
+      { name: 'amount', label: 'Balance', type: 'number', req: true }
+    ]},
+    txn: { label: 'transaction', fields: [
+      { name: 'title', label: 'Title', req: true },
+      { name: 'amount', label: 'Amount (minus = spent)', type: 'number', req: true },
+      { name: 'category', label: 'Category', req: true },
+      { name: 'date', label: 'Date', type: 'date', req: true }
+    ]},
+    goal: { label: 'goal', fields: [
+      { name: 'title', label: 'Goal', req: true },
+      { name: 'amount', label: 'Target', type: 'number', req: true },
+      { name: 'saved', label: 'Saved so far', type: 'number', req: true }
+    ]},
+    task: { label: 'task', fields: [
+      { name: 'title', label: 'Task', req: true },
+      { name: 'tag', label: 'When', req: false }
+    ]}
+  };
+
+  // Build the navigation
+  function navButtons(extraClass) {
+    return NAV.map(function (n, i) {
+      return '<button type="button" data-view="' + n.id + '" aria-label="' + n.label + '"' +
+        (i === 0 ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' + n.icon + '</svg></button>';
+    }).join('');
+  }
+  $('rail').insertAdjacentHTML('beforeend', navButtons());
+  $('dock').innerHTML = navButtons();
+
+  var db = localDb;
+  var uid = 'local';
+  $('lock').classList.remove('hidden');
+
+  var col = db.collection('data/users/' + uid);
+  var profDoc = db.doc('data/users/' + uid + '/profile');
+  var items = [];
+  var profile = {};
+  var editing = null;
+  var busy = false;
+  var loaded = false;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function money(n) {
+    var cur = profile.currency || 'EGP';
+    try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n); }
+    catch (e) { return Math.round(n).toLocaleString('en-US') + ' ' + cur; }
+  }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function showMsg(t) { $('msg').textContent = t || ''; }
+  function ofKind(k) { return items.filter(function (x) { return x.kind === k; }); }
+  function byDateDesc(a, b) { return (b.date || '') < (a.date || '') ? -1 : 1; }
+
+  // Forms: built once, reused for add and edit
+  function buildForms() {
+    Object.keys(KINDS).forEach(function (kind) {
+      var cfg = KINDS[kind];
+      var host = $('form-' + kind);
+      var fields = cfg.fields.map(function (f) {
+        return '<label class="fld"><span>' + esc(f.label) + '</span><input name="' + f.name + '" type="' + (f.type || 'text') +
+          '"' + (f.type === 'number' ? ' step="any" inputmode="decimal"' : '') + (f.req ? ' required' : '') + '></label>';
+      }).join('');
+      host.innerHTML =
+        '<form class="form" data-kind="' + kind + '" novalidate>' + fields +
+        '<div class="actions-row"><button class="btn" type="submit">Add ' + cfg.label + '</button>' +
+        '<button class="btn ghost hidden" type="button" data-act="cancel" data-kind="' + kind + '">Cancel</button></div></form>';
+      host.querySelector('form').addEventListener('submit', function (e) { e.preventDefault(); save(kind, e.target); });
+    });
+    $('profile-form').addEventListener('submit', function (e) { e.preventDefault(); saveProfile(e.target); });
+  }
+
+  function fillForm(kind, values) {
+    var form = $('form-' + kind).querySelector('form');
+    KINDS[kind].fields.forEach(function (f) {
+      var v = values[f.name];
+      form.elements[f.name].value = v == null ? '' : v;
+    });
+    form.querySelector('button[type=submit]').textContent = 'Save changes';
+    form.querySelector('[data-act=cancel]').classList.remove('hidden');
+    form.elements[KINDS[kind].fields[0].name].focus();
+  }
+  function resetForm(kind) {
+    var form = $('form-' + kind).querySelector('form');
+    form.reset();
+    form.querySelector('button[type=submit]').textContent = 'Add ' + KINDS[kind].label;
+    form.querySelector('[data-act=cancel]').classList.add('hidden');
+    if (form.elements.date) form.elements.date.value = todayStr();
+    editing = null;
+  }
+
+  async function save(kind, form) {
+    if (busy) return;
+    var cfg = KINDS[kind], data = {};
+    for (var i = 0; i < cfg.fields.length; i++) {
+      var f = cfg.fields[i], raw = String(form.elements[f.name].value || '').trim();
+      if (f.req && !raw) { showMsg('Please fill in ' + f.label.toLowerCase() + '.'); form.elements[f.name].focus(); return; }
+      if (f.type === 'number') {
+        var n = Number(raw);
+        if (!isFinite(n)) { showMsg('"' + f.label + '" needs a number.'); return; }
+        data[f.name] = n;
+      } else {
+        data[f.name] = raw;
+      }
+    }
+    // Store each kind under the names the lists read
+    if (kind === 'account') { data.balance = data.amount; delete data.amount; }
+    if (kind === 'txn') { data.value = data.amount; delete data.amount; }
+    if (kind === 'goal') { data.target = data.amount; delete data.amount; }
+    var isEdit = editing && editing.kind === kind;
+    if (!isEdit) { data.kind = kind; data.createdAt = Date.now(); if (kind === 'task') data.done = false; }
+    else if (kind !== 'task') { data.kind = kind; }
+
+    busy = true; setBusy(true); showMsg('');
+    try {
+      if (isEdit) await col.doc(editing.id).update(data);
+      else await col.add(data);
+      resetForm(kind);
+    } catch (err) {
+      showMsg('Could not save that. ' + (err && err.message ? err.message : 'Try again.'));
+    } finally { busy = false; setBusy(false); }
+  }
+
+  function setBusy(on) {
+    document.querySelectorAll('button[type=submit]').forEach(function (b) { b.disabled = on; });
+  }
+
+  async function saveProfile(form) {
+    if (busy) return;
+    var next = {
+      name: String(form.elements.name.value || '').trim(),
+      currency: form.elements.currency.value,
+      style: document.body.classList.contains('modern') ? 'modern' : 'skeuo'
+    };
+    busy = true; setBusy(true);
+    try { await profDoc.set(next); showMsg(''); }
+    catch (err) { showMsg('Could not save your profile. Try again.'); }
+    finally { busy = false; setBusy(false); }
+  }
+
+  async function removeItem(kind, id) {
+    if (busy) return;
+    busy = true; setBusy(true);
+    try {
+      await col.doc(id).delete();
+      if (editing && editing.id === id) resetForm(kind);
+    } catch (err) { showMsg('Could not delete that. Try again.'); }
+    finally { busy = false; setBusy(false); }
+  }
+  async function toggleTask(id, done) {
+    try { await col.doc(id).update({ done: done }); }
+    catch (err) { showMsg('Could not update that task.'); }
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act');
+    var kind = b.getAttribute('data-kind');
+    var id = b.getAttribute('data-id');
+    if (act === 'edit') {
+      var item = items.find(function (x) { return x.id === id; });
+      if (!item) return;
+      editing = { kind: kind, id: id };
+      if (kind === 'account') fillForm(kind, { title: item.title, amount: item.balance });
+      else if (kind === 'txn') fillForm(kind, { title: item.title, amount: item.value, category: item.category, date: item.date });
+      else if (kind === 'goal') fillForm(kind, { title: item.title, amount: item.target, saved: item.saved });
+      else if (kind === 'task') fillForm(kind, { title: item.title, tag: item.tag });
+      show(kind === 'task' ? 'tasks' : kind === 'goal' ? 'goals' : 'wallet');
+    } else if (act === 'del') {
+      removeItem(kind, id);
+    } else if (act === 'cancel') {
+      resetForm(kind);
+    } else if (act === 'seed') {
+      seed();
+    } else if (act === 'lock') {
+      window.location.reload();
+    }
+  });
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.matches && t.matches('input[data-task]')) toggleTask(t.getAttribute('data-task'), t.checked);
+    if (t.id === 'act-filter') renderActivity();
+  });
+
+  function rowActions(kind, id) {
+    return '<div class="row-actions"><button class="btn ghost small" type="button" data-act="edit" data-kind="' + kind +
+      '" data-id="' + id + '">Edit</button><button class="btn ghost small danger" type="button" data-act="del" data-kind="' +
+      kind + '" data-id="' + id + '">Delete</button></div>';
+  }
+  function emptyRow(text) { return '<li class="empty">' + text + '</li>'; }
+
+  function txnRow(t, withActions) {
+    return '<li class="item"><div class="grow"><div class="name">' + esc(t.title) + '</div><div class="meta">' +
+      esc(t.category) + ' · ' + esc(t.date) + '</div></div><div class="amount ' + (t.value >= 0 ? 'pos' : 'neg') + '">' +
+      (t.value >= 0 ? '+' : '') + money(t.value) + '</div>' + (withActions ? rowActions('txn', t.id) : '') + '</li>';
+  }
+  function goalRow(g, withActions) {
+    var pct = g.target > 0 ? Math.min(100, Math.round(g.saved / g.target * 100)) : 0;
+    return '<li class="item" style="display:block"><div style="display:flex;gap:12px;align-items:center"><div class="grow"><div class="name">' +
+      esc(g.title) + '</div></div>' + (withActions ? rowActions('goal', g.id) : '') + '</div><div class="goal-top"><span>' + money(g.saved) +
+      '</span><span>' + money(g.target) + ' · ' + pct + '%</span></div><div class="bar"><i style="width:' + pct + '%"></i></div></li>';
+  }
+  function taskRow(t, withActions) {
+    return '<li class="item' + (t.done ? ' done' : '') + '"><input type="checkbox" data-task="' + t.id + '"' + (t.done ? ' checked' : '') +
+      ' aria-label="Mark done"><div class="grow"><div class="name">' + esc(t.title) + '</div>' +
+      (t.tag ? '<div class="meta">' + esc(t.tag) + '</div>' : '') + '</div>' + (withActions ? rowActions('task', t.id) : '') + '</li>';
+  }
+
+  function renderLists() {
+    var accounts = ofKind('account'), txns = ofKind('txn').sort(byDateDesc), goals = ofKind('goal'), tasks = ofKind('task');
+
+    $('list-account').innerHTML = accounts.length ? accounts.map(function (a) {
+      return '<li class="item"><div class="avatar">' + esc(a.title.slice(0, 2).toUpperCase()) + '</div><div class="grow"><div class="name">' +
+        esc(a.title) + '</div></div><div class="amount">' + money(a.balance) + '</div>' + rowActions('account', a.id) + '</li>';
+    }).join('') : emptyRow('No accounts yet.');
+    $('list-txn').innerHTML = txns.length ? txns.map(function (t) { return txnRow(t, true); }).join('') : emptyRow('No transactions yet.');
+    $('list-goal').innerHTML = goals.length ? goals.map(function (g) { return goalRow(g, true); }).join('') : emptyRow('No goals yet.');
+    $('list-task').innerHTML = tasks.length ? tasks.map(function (t) { return taskRow(t, true); }).join('') : emptyRow('No tasks yet.');
+
+    // Overview summaries
+    $('sum-txn').innerHTML = txns.slice(0, 5).map(function (t) { return txnRow(t, false); }).join('') || emptyRow('No transactions yet.');
+    $('sum-goal').innerHTML = goals.slice(0, 4).map(function (g) { return goalRow(g, false); }).join('') || emptyRow('No goals yet.');
+    $('sum-task').innerHTML = tasks.slice(0, 5).map(function (t) { return taskRow(t, false); }).join('') || emptyRow('No tasks yet.');
+
+    renderTotals(accounts, txns, goals);
+    renderDonut(txns);
+    renderSavings(goals);
+    renderActivity();
+    renderReports(txns);
+
+    $('empty-banner').classList.toggle('hidden', !(items.length === 0 && loaded));
+  }
+
+  function renderTotals(accounts, txns, goals) {
+    var total = accounts.reduce(function (s, a) { return s + (a.balance || 0); }, 0);
+    $('k-balance').textContent = money(total);
+    $('k-accounts').textContent = accounts.length + ' account' + (accounts.length === 1 ? '' : 's');
+
+    var month = todayStr().slice(0, 7);
+    var spent = txns.filter(function (t) { return t.value < 0 && (t.date || '').slice(0, 7) === month; })
+      .reduce(function (s, t) { return s + Math.abs(t.value); }, 0);
+    $('k-spent').textContent = money(spent);
+    $('k-spent-d').textContent = 'This calendar month';
+
+    var reached = goals.filter(function (g) { return g.saved >= g.target && g.target > 0; }).length;
+    $('k-goals').textContent = reached + ' / ' + goals.length;
+    $('k-goals-d').textContent = goals.length ? 'Goals with the full amount saved' : 'Add a goal to start';
+  }
+
+  function renderSavings(goals) {
+    var saved = goals.reduce(function (s, g) { return s + (g.saved || 0); }, 0);
+    var target = goals.reduce(function (s, g) { return s + (g.target || 0); }, 0);
+    $('g-saved').textContent = money(saved);
+    $('g-target').textContent = money(target);
+    $('g-bar').style.width = (target > 0 ? Math.min(100, Math.round(saved / target * 100)) : 0) + '%';
+  }
+
+  function renderActivity() {
+    var mode = $('act-filter') ? $('act-filter').value : 'all';
+    var txns = ofKind('txn').sort(byDateDesc).filter(function (t) {
+      return mode === 'all' || (mode === 'in' ? t.value >= 0 : t.value < 0);
+    });
+    $('list-activity').innerHTML = txns.length ? txns.map(function (t) { return txnRow(t, false); }).join('') : emptyRow('Nothing to show.');
+  }
+
+  function renderReports(txns) {
+    var inT = txns.filter(function (t) { return t.value >= 0; }).reduce(function (s, t) { return s + t.value; }, 0);
+    var outT = txns.filter(function (t) { return t.value < 0; }).reduce(function (s, t) { return s + Math.abs(t.value); }, 0);
+    $('r-in').textContent = money(inT);
+    $('r-out').textContent = money(outT);
+    $('r-net').textContent = money(inT - outT);
+
+    var byCat = {};
+    txns.forEach(function (t) { if (t.value < 0) byCat[t.category] = (byCat[t.category] || 0) + Math.abs(t.value); });
+    var cats = Object.keys(byCat).map(function (k) { return { name: k, v: byCat[k] }; }).sort(function (a, b) { return b.v - a.v; });
+    var max = cats.length ? cats[0].v : 0;
+    $('r-cats').innerHTML = cats.length ? cats.map(function (c) {
+      var pct = max ? Math.round(c.v / max * 100) : 0;
+      return '<div class="cat-row"><div class="top"><span>' + esc(c.name) + '</span><span>' + money(c.v) + '</span></div><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+    }).join('') : '<p class="empty">No spending recorded yet.</p>';
+  }
+
+  function renderDonut(txns) {
+    var svg = $('donut');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var byCat = {};
+    txns.forEach(function (t) { if (t.value < 0) byCat[t.category] = (byCat[t.category] || 0) + Math.abs(t.value); });
+    var cats = Object.keys(byCat).map(function (k) { return { name: k, v: byCat[k] }; }).sort(function (a, b) { return b.v - a.v; });
+    var legend = $('donut-legend');
+    legend.innerHTML = '';
+    var total = cats.reduce(function (s, c) { return s + c.v; }, 0);
+    if (!total) {
+      var t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', 130); t.setAttribute('y', 134); t.setAttribute('text-anchor', 'middle');
+      t.textContent = 'No spending yet';
+      svg.appendChild(t);
+      return;
+    }
+    var cx = 130, cy = 130, R = 96, r = 62, a = -Math.PI / 2;
+    var card = getComputedStyle(document.body).getPropertyValue('--card').trim() || '#fff';
+    cats.forEach(function (c, i) {
+      var da = c.v / total * Math.PI * 2, b = a + da, large = da > Math.PI ? 1 : 0;
+      var p = function (rad, ang) { return (cx + rad * Math.cos(ang)).toFixed(2) + ' ' + (cy + rad * Math.sin(ang)).toFixed(2); };
+      var path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', 'M' + p(R, a) + ' A' + R + ' ' + R + ' 0 ' + large + ' 1 ' + p(R, b) + ' L' + p(r, b) + ' A' + r + ' ' + r + ' 0 ' + large + ' 0 ' + p(r, a) + ' Z');
+      path.setAttribute('fill', COLORS[i % COLORS.length]);
+      path.setAttribute('stroke', card);
+      path.setAttribute('stroke-width', 2);
+      svg.appendChild(path);
+      a = b;
+      var s = document.createElement('span');
+      s.innerHTML = '<i style="background:' + COLORS[i % COLORS.length] + '"></i>' + esc(c.name);
+      legend.appendChild(s);
+    });
+    var big = document.createElementNS(NS, 'text');
+    big.setAttribute('x', cx); big.setAttribute('y', cy + 2); big.setAttribute('text-anchor', 'middle');
+    big.setAttribute('font-size', 20); big.setAttribute('font-weight', 700);
+    big.style.fill = 'var(--ink)';
+    big.textContent = money(total);
+    svg.appendChild(big);
+    var small = document.createElementNS(NS, 'text');
+    small.setAttribute('x', cx); small.setAttribute('y', cy + 22); small.setAttribute('text-anchor', 'middle');
+    small.textContent = 'all spending';
+    svg.appendChild(small);
+  }
+
+  // Example data, each item marked example:true so it can be spotted and deleted
+  async function seed() {
+    if (busy) return;
+    busy = true; setBusy(true); showMsg('');
+    var today = new Date();
+    var iso = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    var ago = function (n) { var d = new Date(today); d.setDate(d.getDate() - n); return iso(d); };
+    var docs = [
+      { kind: 'account', title: 'Current account', balance: 12500 },
+      { kind: 'account', title: 'Savings', balance: 5992 },
+      { kind: 'txn', title: 'Salary', value: 22000, category: 'Income', date: ago(1) },
+      { kind: 'txn', title: 'Grocery store', value: -1840, category: 'Food', date: ago(2) },
+      { kind: 'txn', title: 'Streaming subscription', value: -180, category: 'Fun', date: ago(3) },
+      { kind: 'txn', title: 'Metro card top-up', value: -150, category: 'Transport', date: ago(4) },
+      { kind: 'txn', title: 'Apartment rent', value: -9000, category: 'Housing', date: ago(5) },
+      { kind: 'goal', title: 'New laptop', target: 40000, saved: 18500 },
+      { kind: 'goal', title: 'Emergency fund', target: 30000, saved: 29000 },
+      { kind: 'task', title: 'Review last month\'s statement', tag: 'Today', done: false },
+      { kind: 'task', title: 'Move 1,000 to savings', tag: 'This week', done: false },
+      { kind: 'task', title: 'Cancel an unused subscription', tag: 'This week', done: true }
+    ];
+    docs.forEach(function (d) { d.example = true; d.createdAt = Date.now(); });
+    try {
+      for (var i = 0; i < docs.length; i++) await col.add(docs[i]);
+    } catch (err) {
+      showMsg('Some example items could not be added. Try again.');
+    } finally { busy = false; setBusy(false); }
+  }
+
+  // Views and style
+  var VIEWS = NAV.map(function (n) { return n.id; });
+  function show(view) {
+    VIEWS.forEach(function (v) { $('view-' + v).classList.toggle('hidden', v !== view); });
+    document.querySelectorAll('[data-view]').forEach(function (b) {
+      b.setAttribute('aria-current', b.getAttribute('data-view') === view ? 'page' : 'false');
+    });
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-view]');
+    if (b) show(b.getAttribute('data-view'));
+  });
+
+  function setStyle(s, save) {
+    document.body.classList.toggle('skeuo', s === 'skeuo');
+    document.body.classList.toggle('modern', s === 'modern');
+    document.querySelectorAll('[data-style]').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-style') === s ? 'true' : 'false');
+    });
+    if (save) {
+      profDoc.update({ style: s }).catch(function () {
+        profDoc.set(Object.assign({}, profile, { style: s })).catch(function () {});
+      });
+    }
+    renderLists();
+  }
+  document.querySelectorAll('[data-style]').forEach(function (b) {
+    b.addEventListener('click', function () { setStyle(b.getAttribute('data-style'), true); });
+  });
+
+  // Runs once the account unlocks: builds the forms and starts the live data
+  function startApp() {
+  buildForms();
+  resetForm('txn');
+  resetForm('account');
+  resetForm('goal');
+  resetForm('task');
+  var fset = $('profile-form').elements;
+
+  profDoc.onSnapshot(function (snap) {
+    profile = snap.exists ? (snap.data() || {}) : {};
+    var hour = new Date().getHours();
+    var part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    $('greet').textContent = part + (profile.name ? ', ' + profile.name : '');
+    fset.name.value = profile.name || '';
+    fset.currency.value = profile.currency || 'EGP';
+    if (profile.style) setStyle(profile.style, false);
+    renderLists();
+  }, function () { showMsg('Could not load your profile.'); });
+
+  col.onSnapshot(function (snap) {
+    items = snap.docs.filter(function (d) { return d.exists && d.data() && d.data().kind; })
+      .map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+    loaded = true;
+    renderLists();
+  }, function () { showMsg('Could not load your data. Refresh the page to try again.'); });
+  }
+
+  // Local account lock. The password is never stored: only a salted PBKDF2 hash in this person's private space.
+  var authDoc = db.doc('data/users/' + uid + '/auth');
+  var enc = new TextEncoder();
+  function b64(buf) { var a = new Uint8Array(buf), s = ''; for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
+  function unb64(s) { var bin = atob(s), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+  async function derive(password, salt, iter) {
+    var key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+    var bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: iter, hash: 'SHA-256' }, key, 256);
+    return b64(bits);
+  }
+  var unlocked = false;
+  function unlock() {
+    if (unlocked) return;
+    unlocked = true;
+    $('lock').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    startApp();
+  }
+
+  var lockForm = $('lock-form');
+  var authSnap = null;
+  try { authSnap = await authDoc.get(); } catch (err) { authSnap = null; }
+  var acct = authSnap && authSnap.exists ? authSnap.data() : null;
+  $('lock-title').textContent = acct ? 'Log in to Ledger' : 'Create your Ledger account';
+  $('lock-sub').textContent = acct
+    ? 'Enter your username and password.'
+    : 'Choose a username and password. You will use them every time you open Ledger.';
+  $('lock-confirm-wrap').classList.toggle('hidden', !!acct);
+  $('lock-forgot').classList.toggle('hidden', !acct);
+  $('reset-open').addEventListener('click', function () { $('reset-box').classList.remove('hidden'); });
+  $('reset-go').addEventListener('click', async function () {
+    $('reset-go').disabled = true;
+    try { await authDoc.delete(); window.location.reload(); }
+    catch (err) { $('lock-msg').textContent = 'Could not reset the password. Try again.'; $('reset-go').disabled = false; }
+  });
+  $('lock-submit').textContent = acct ? 'Log in' : 'Create account';
+  if (!acct) lockForm.elements.password.setAttribute('autocomplete', 'new-password');
+
+  lockForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var u = String(lockForm.elements.username.value || '').trim();
+    var p = String(lockForm.elements.password.value || '');
+    var btn = $('lock-submit');
+    $('lock-msg').textContent = '';
+    if (!u || p.length < 8) { $('lock-msg').textContent = 'Use a username and a password of at least 8 characters.'; return; }
+    btn.disabled = true;
+    try {
+      if (acct) {
+        var h = await derive(p, unb64(acct.salt), acct.iter);
+        if (u !== acct.username || h !== acct.hash) { $('lock-msg').textContent = 'Wrong username or password.'; return; }
+      } else {
+        if (p !== lockForm.elements.confirm.value) { $('lock-msg').textContent = 'The two passwords do not match.'; return; }
+        var salt = crypto.getRandomValues(new Uint8Array(16));
+        var iter = 210000;
+        var hash = await derive(p, salt, iter);
+        await authDoc.set({ username: u, salt: b64(salt), iter: iter, hash: hash, createdAt: Date.now() });
+      }
+      unlock();
+    } catch (err) {
+      $('lock-msg').textContent = 'Could not sign in. Try again.';
+    } finally { btn.disabled = false; }
+  });
+})();
+</script>
